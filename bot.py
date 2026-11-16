@@ -1,6 +1,8 @@
 import os
 import random
 import logging
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler
 
@@ -10,6 +12,17 @@ logging.basicConfig(
 )
 
 TOKEN = "924383975:AAEmYaY7z7b-jRp0osaZ2xfgyGhqTYmoDds"
+
+class DummyHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot en ligne !")
+
+def run_web_server():
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(("0.0.0.0", port), DummyHandler)
+    server.serve_forever()
 
 async def send_signal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     actifs = ["EUR/USD (OTC)", "GBP/USD", "EUR/JPY", "Bitcoin (BTC)"]
@@ -39,10 +52,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 if __name__ == '__main__':
+    threading.Thread(target=run_web_server, daemon=True).start()
     application = ApplicationBuilder().token(TOKEN).build()
-
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("signal", send_signal))
-
     print("Le bot est en ligne et à l'écoute...")
     application.run_polling()
+    
